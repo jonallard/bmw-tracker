@@ -155,6 +155,32 @@ export const ITEMS = {
     diy: 'easy',
     diyNote: 'Look at the reservoir with the engine cold. Level should sit between the marks and the color should be clean.',
   },
+  cooling: {
+    id: 'cooling',
+    name: 'Cooling system leak check',
+    short: 'A quick look for coolant leaks and a dropping coolant level. The cooling system is the most-reported B48 problem area.',
+    miles: null,
+    months: 6,
+    tag: 'B48 watch',
+    why: 'Owner and parts-shop sites most often cite the B48 cooling system: the water pump, the thermostat housing and hoses, and the vent line. Check every 6 months. Your JB4 adds load and heat, so the shorter gap is my call, not a BMW rule.',
+    source: 'Owner and parts-shop sites. Not BMW, and not specific to 2022 cars.',
+    extraNote: 'What to look at, engine cold: coolant level in the reservoir sits between the marks, no wet or crusty residue around hoses and the pump, no sweet smell, no puddle under the car, no coolant warning on the dash. If you see a warning or the temperature climbs, do not keep driving.',
+    diy: 'easy',
+    diyNote: 'It is a look, not a repair. Any fix after that is a shop job.',
+  },
+  oilleaks: {
+    id: 'oilleaks',
+    name: 'Oil leak check',
+    short: 'A quick look for oil seepage around the valve cover and oil filter housing.',
+    miles: null,
+    months: 6,
+    tag: 'B48 watch',
+    why: 'Owners most often report seepage at the valve cover gasket and the oil filter housing area. How common it is on 2022 cars is not clear from the sources I found. Check every 6 months, and check the oil level at the same time.',
+    source: 'Owner and parts-shop sites. Not BMW, and not specific to 2022 cars.',
+    extraNote: 'What to look at: wet or dirty oil on the top or side of the engine near the valve cover, around the oil filter housing, and any oil spots where you park. Check the dipstick level (or the iDrive oil level) too.',
+    diy: 'easy',
+    diyNote: 'It is a look, not a repair. A gasket or housing seal fix is a shop job.',
+  },
   rotation: {
     id: 'rotation',
     name: 'Tire rotation',
@@ -247,9 +273,36 @@ export const ITEMS = {
   },
 };
 
+
+// B48 watch list. Sources are owner and parts-shop sites, not BMW. Confidence
+// is stated per entry so it is clear how much weight to give each one.
+export const WATCH = [
+  {
+    title: 'Cooling system',
+    item: 'cooling',
+    confidence: 'Most-cited, but the sources are weak',
+    body: 'Water pump, thermostat housing and hoses, and the vent line are the parts named most often. One source says electric water pump failures show up around 60,000 to 80,000 miles. Another source attributes that same pattern to the B58 engine, so it is unclear whether it applies to your B48.',
+    action: 'Look for leaks and a falling coolant level every 6 months. A coolant warning or a climbing temperature means stop and call a shop.',
+  },
+  {
+    title: 'Oil leaks',
+    item: 'oilleaks',
+    confidence: 'Commonly reported, frequency unknown',
+    body: 'Seepage at the valve cover gasket and the oil filter housing area is the usual report. None of the sources said how often it happens on 2022 cars.',
+    action: 'Look for wet oil near the valve cover and filter housing, and check the oil level every 6 months.',
+  },
+  {
+    title: 'Timing chain',
+    item: null,
+    confidence: 'Less of a concern',
+    body: 'One source says the B48 does not have the timing chain guide failure that hit the older N20 engine.',
+    action: 'Nothing to schedule. Listen for a rattle on cold start and see a shop if you hear one.',
+  },
+];
+
 export const ORDER = [
   'oil', 'plugs', 'coils', 'airfilter', 'cabin', 'brakefluid', 'atf', 'transfer',
-  'diffs', 'coolant', 'rotation', 'tires', 'brakes', 'wipers', 'battery', 'walnut',
+  'diffs', 'coolant', 'cooling', 'oilleaks', 'rotation', 'tires', 'brakes', 'wipers', 'battery', 'walnut',
   'vehiclecheck',
 ];
 

@@ -1,8 +1,8 @@
 // Offline cache: serve from cache first, refresh in the background.
-const CACHE = 'bmw-care-shell-v1';
+const CACHE = 'bmw-care-shell-v2';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/app.js', 'js/calc.js', 'js/db.js', 'js/items.js',
+  'js/app.js', 'js/calc.js', 'js/db.js', 'js/items.js', 'js/recalls.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
 
