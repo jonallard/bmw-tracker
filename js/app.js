@@ -1,4 +1,4 @@
-import { ITEMS, ORDER, CAR, START_MILES, FACTORY, DIY, WATCH } from './items.js';
+import { ITEMS, ORDER, CAR, START_MILES, FACTORY, DIY, WATCH, CONFIDENCE } from './items.js';
 import * as R from './recalls.js';
 import * as DB from './db.js';
 import * as C from './calc.js';
@@ -290,6 +290,7 @@ function itemView(id) {
     <section class="card"><h2>What it is</h2><p>${esc(it.short)}</p></section>
     <section class="card"><h2>How often</h2>
       <p class="strong">${intervalText(it)}</p>
+      ${it.confidence ? `<p><span class="conf c-${it.confidence}">${CONFIDENCE[it.confidence]}</span> <span class="small">${esc(it.confNote || '')}</span></p>` : ''}
       ${it.customInterval ? `<p class="muted small">You changed this. Starting value was ${esc(intervalText({ ...it, miles: it.defaultMiles, months: it.defaultMonths }))}.</p>` : ''}
       <p><span class="tag">${esc(it.tag || '')}</span></p>
       <p>${esc(it.why)}</p>
@@ -300,7 +301,8 @@ function itemView(id) {
     <section class="card"><h2>Last done</h2>${lastDone}</section>
     <section class="card"><h2>Cost guide</h2>${costCard}</section>
     <section class="card"><h2>Can you do it yourself?</h2>
-      <p><span class="diy d-${it.diy}">${DIY[it.diy]}</span></p><p>${esc(it.diyNote)}</p></section>
+      <p><span class="diy d-${it.diy}">${DIY[it.diy]}</span></p><p>${esc(it.diyNote)}</p>
+      <p class="muted small">DIY ratings are my judgment, not BMW's.</p></section>
     ${special}
     ${calBlock}
     <section><h2 class="grp">History</h2>${histHtml}</section>
@@ -351,6 +353,9 @@ function moreView() {
     <section class="card"><h2>Recalls</h2>
       <p>${S.recalls.checkedAt ? (openRecalls().length ? `<b>${plural(openRecalls().length, 'open recall')}</b> for your model year.` : 'No open recalls found for your model year.') : 'Not checked yet.'}</p>
       <a class="btn ghost" href="#/recalls">Open recalls</a></section>
+    <section class="card"><h2>How sure am I?</h2>
+      <p class="muted small">Where each interval came from, and where sources disagree. Check it against your car.</p>
+      <a class="btn ghost" href="#/accuracy">See sources and confidence</a></section>
     <section class="card"><h2>B48 watch list</h2>
       <p class="muted small">Problem areas owners report for your engine, with how much to trust each one.</p>
       <a class="btn ghost" href="#/watch">Open watch list</a></section>
@@ -380,6 +385,24 @@ function moreView() {
       <p class="muted small">No account, no server. Everything stays on this phone. Version ${APP_VERSION}.</p></section>
     <section class="card"><h2>Danger zone</h2>
       <button class="btn danger-ghost" data-act="wipe">Delete all data</button></section>`;
+}
+
+// ---------------------------------------------------------------- ACCURACY
+function accuracyView() {
+  const groups = ['widely', 'conflict', 'yours', 'unchecked', 'weak'];
+  const body = groups.map((g) => {
+    const ids = ORDER.filter((id) => ITEMS[id].confidence === g);
+    if (!ids.length) return '';
+    return `<section><h2 class="grp">${CONFIDENCE[g]} <span class="count">${ids.length}</span></h2><div class="list">${ids
+      .map((id) => `<a class="row plain" href="#/item/${id}"><span class="main"><span class="name">${esc(ITEMS[id].name)}</span><span class="sub">${esc(ITEMS[id].confNote)}</span></span></a>`)
+      .join('')}</div></section>`;
+  }).join('');
+  return `<div class="topbar"><a class="back" href="#/more">‹ More</a></div>
+    <h1 class="title">How sure am I?</h1>
+    <section class="card warn"><h2>Read this first</h2>
+      <p>I could not get BMW's own maintenance schedule for your VIN. Everything here comes from your starting numbers and secondhand sources such as forum posts, dealer pages and parts sites, and those often disagree.</p>
+      <p><b>The most accurate source is your car.</b> Check the service items in iDrive vehicle status, the maintenance section of your owner's manual or booklet, and the My BMW app. Where BMW's number differs from one here, edit the interval on that item.</p></section>
+    ${body}`;
 }
 
 // ---------------------------------------------------------------- RECALLS + WATCH
@@ -476,12 +499,6 @@ function setupView() {
 
 // Work out when the last service was from a My BMW "due in" number.
 function bmwLast(id, milesLeft, dueDate) {
-  const cur = ctx().cur || 0;
-  if (id === 'oil')
-    return {
-      miles: milesLeft != null ? Math.max(0, Math.round(cur + milesLeft - FACTORY.oilMiles)) : null,
-      date: dueDate ? C.addMonths(dueDate, -FACTORY.oilMonths) : null,
-    };
   return { miles: null, date: dueDate ? C.addMonths(dueDate, -FACTORY.brakeFluidMonths) : null };
 }
 const historyRec = (itemId, o) => ({ itemId, date: null, miles: null, cost: null, shop: '', notes: '', photo: null, source: 'setup', createdAt: Date.now(), ...o });
@@ -543,7 +560,7 @@ function resolveSheet(id) {
   const it = C.effectiveItem(ITEMS[id], S.over[id], S.settings);
   if (it.kind === 'tires') return tiresSheet();
   const orig = !!ITEMS[id].setupNever;
-  const bmw = id === 'oil' || id === 'brakefluid';
+  const bmw = id === 'brakefluid';
   openSheet(`<h2>${esc(it.name)}</h2><p class="muted small">${esc(it.short)}</p>
     <p class="strong" style="margin-top:10px">When was it last done?</p>
     <div class="grid2"><label class="field">Date<input id="r-date" type="date" max="${C.today()}"></label>
@@ -553,8 +570,7 @@ function resolveSheet(id) {
     ${orig ? `<button class="btn ghost" data-act="resolve-original" data-id="${id}">Original part, never replaced</button>` : ''}
     ${bmw ? `<details><summary>Copy from the My BMW app instead</summary>
       <p class="muted small">Enter what the app says is due and I will work back to when it was last done.</p>
-      <div class="grid2">${id === 'oil' ? `<label class="field">Due in (miles)<input id="r-bmw-miles" type="text" inputmode="numeric"></label>` : ''}
-      <label class="field">Due by date<input id="r-bmw-date" type="date"></label></div>
+      <label class="field">Due by date<input id="r-bmw-date" type="date"></label>
       <button class="btn ghost" data-act="save-resolve-bmw" data-id="${id}">Use these numbers</button></details>` : ''}
     <a class="btn ghost" href="#/item/${id}">Open details</a>
     <button class="btn ghost" data-act="close-sheet">Not sure yet</button></div>`);
@@ -932,8 +948,7 @@ const A = {
   },
   'save-resolve-bmw': async (t) => {
     const id = t.dataset.id;
-    const mEl = $('#r-bmw-miles');
-    const last = bmwLast(id, mEl ? num(mEl.value) : null, $('#r-bmw-date').value || null);
+    const last = bmwLast(id, null, $('#r-bmw-date').value || null);
     if (last.miles == null && !last.date) return ($('#f-err').textContent = 'Enter what the My BMW app shows.');
     await addHistory(historyRec(id, { date: last.date, miles: last.miles, notes: 'Worked out from My BMW app numbers', source: 'bmw' }));
     closeSheet();
@@ -1016,6 +1031,7 @@ function render(scrollTop) {
   else if (hash === '#/history') { html = historyView(); tab = 'history'; }
   else if (hash === '#/more') { html = moreView(); tab = 'more'; }
   else if (hash === '#/recalls') { html = recallsView(); tab = 'more'; }
+  else if (hash === '#/accuracy') { html = accuracyView(); tab = 'more'; }
   else if (hash === '#/watch') { html = watchView(); tab = 'more'; }
   else html = homeView();
   view.innerHTML = html;

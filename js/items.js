@@ -16,7 +16,15 @@ export const CAR = {
 
 export const START_MILES = 33086;
 
-export const FACTORY = { oilMiles: 12500, oilMonths: 12, brakeFluidMonths: 24 };
+export const FACTORY = { brakeFluidMonths: 24 };
+
+export const CONFIDENCE = {
+  widely: 'Widely reported',
+  conflict: 'Sources disagree',
+  yours: 'Your setting',
+  unchecked: 'Not checked',
+  weak: 'Weak sources',
+};
 
 export const DIY = {
   easy: 'Easy DIY',
@@ -32,11 +40,13 @@ export const ITEMS = {
     miles: 5000,
     months: 12,
     tag: 'Shortened for the JB4',
-    why: 'BMW\'s factory interval is about 12,500 miles or 1 year. Tuned B48 owners and BMW specialists recommend about 5,000 to 6,000 miles for a tuned or hard-driven car. Set to 5,000 because of the JB4.',
-    source: 'BMW factory interval, plus owner and specialist guidance.',
+    why: 'BMW\'s car works out its own oil interval (CBS) from how you drive, and sources I found put it anywhere from about 7,500 to 15,000 miles. Tuned B48 owners and specialists suggest shorter. You set 5,000 for the JB4.',
+    source: 'BMW CBS, plus owner and specialist reports. Read the car\'s own number in iDrive or the My BMW app.',
     diy: 'tools',
-    diyNote: 'Needs the right BMW-approved oil, a filter cartridge, a torque wrench and a safe way to lift the car.',
+    diyNote: 'Needs the right oil, a filter cartridge, a torque wrench and a safe way to lift the car. Oil spec: BMW Longlife-17 FE+ 0W-20, from a parts retailer\'s fitment list. Confirm it in your owner\'s manual.',
     defaultQuote: { amount: 133.85, label: 'Dealer quote, Feb 2026' },
+    confidence: 'yours',
+    confNote: '5,000 is your choice for the tune. BMW\'s own interval comes from the car (CBS), and the sources I found range from about 7,500 to 15,000 miles.',
   },
   plugs: {
     id: 'plugs',
@@ -45,11 +55,13 @@ export const ITEMS = {
     miles: 30000,
     months: null,
     tag: 'Shortened for the JB4',
-    why: 'Stock plugs are often quoted at 40,000 to 60,000 miles. Tuned B48 engines are reported to burn plugs down by about 30,000.',
-    source: 'Owner reports on tuned B48 engines.',
+    why: 'Stock plugs are reported at about 60,000 miles, and some sources say 40,000 to 60,000. One owner source says a tune can cut plug life to about 30,000. Set to 30,000 for the JB4.',
+    source: 'Forum posts quoting the BMW booklet, parts sites, and tuner reports. Not BMW directly.',
     diy: 'tools',
-    diyNote: 'Needs a torque wrench, a spark plug socket and extensions. The cylinder head is aluminum, so go gently.',
+    diyNote: 'Needs a torque wrench, a spark plug socket and extensions. Go gently and torque to spec.',
     setupNever: true,
+    confidence: 'conflict',
+    confNote: 'Stock is reported at about 60,000 miles (some sources say 40,000 to 60,000). About 30,000 on a tuned car is an owner report, not a BMW number.',
   },
   coils: {
     id: 'coils',
@@ -59,11 +71,13 @@ export const ITEMS = {
     months: null,
     tag: 'Tied to spark plugs',
     why: 'Replace about every second plug change. That works out to about 60,000 miles.',
-    source: 'Your starting interval.',
+    source: 'Your rule of thumb. Not checked against a source.',
     diy: 'tools',
     diyNote: 'Same tools as spark plugs. Easiest to do while the plugs are out.',
     setupNever: true,
     linkedTo: 'plugs',
+    confidence: 'unchecked',
+    confNote: 'I found no source for this. It is your rule of thumb.',
   },
   airfilter: {
     id: 'airfilter',
@@ -73,10 +87,12 @@ export const ITEMS = {
     months: 36,
     tag: 'Factory interval',
     why: 'This is BMW\'s factory interval. Your Dinan intake has its own filter, so this depends on whether yours is washable. Set that under More.',
-    source: 'BMW factory interval.',
+    source: 'Third-party service schedules. Not BMW directly.',
     diy: 'easy',
     diyNote: 'Usually a few clips or screws and no special tools.',
     defaultQuote: { amount: 54.21, label: 'Dealer quote, Feb 2026' },
+    confidence: 'conflict',
+    confNote: 'Sources I found range from 30,000 to 45,000 miles. Your 37,500 miles or 3 years sits inside that range. BMW\'s own number was not confirmed.',
   },
   cabin: {
     id: 'cabin',
@@ -85,11 +101,13 @@ export const ITEMS = {
     miles: 25000,
     months: 24,
     tag: 'Starting interval',
-    why: 'A common interval for a car that sees pollen and dust. Shorten it if the vents smell musty.',
-    source: 'Your starting interval.',
+    why: 'The sources I found disagree, from 15,000 miles or 1 year to your 25,000 miles or 2 years. Shorten it if the vents smell musty.',
+    source: 'Your starting interval. One third-party source says 15,000 miles or 1 year.',
     diy: 'easy',
     diyNote: 'Parts only. A short video for your car will show where the filter sits.',
     defaultQuote: { amount: 108.97, label: 'Dealer quote, Feb 2026' },
+    confidence: 'conflict',
+    confNote: 'One source says 15,000 miles or 1 year. Your 25,000 miles or 2 years is longer. BMW\'s own number was not confirmed.',
   },
   brakefluid: {
     id: 'brakefluid',
@@ -99,9 +117,11 @@ export const ITEMS = {
     months: 24,
     tag: 'Time only',
     why: 'Every 2 years no matter how far you drive, because the fluid absorbs moisture as it ages.',
-    source: 'BMW schedule.',
+    source: 'Several dealer and parts-site schedules. Not confirmed from BMW directly.',
     diy: 'shop',
     diyNote: 'Bleeding modern ABS brakes properly takes the right equipment. Worth paying a shop.',
+    confidence: 'widely',
+    confNote: 'Most sources say every 2 years regardless of mileage. I could not confirm it from BMW\'s own documents.',
   },
   atf: {
     id: 'atf',
@@ -111,11 +131,13 @@ export const ITEMS = {
     months: null,
     tag: 'Experts disagree',
     why: 'BMW calls this fluid "lifetime". ZF, who build the gearbox, and BMW specialists recommend about 50,000 miles. A tune adds heat and load, which is another reason to lean toward the shorter number. Set to 50,000.',
-    source: 'ZF and BMW specialist guidance. BMW itself says lifetime.',
+    source: 'ZF and BMW specialist guidance from forum posts. BMW itself reportedly says lifetime.',
     disagreement: 'BMW: lifetime fill, no service. ZF and specialists: about 50,000 miles.',
     diy: 'shop',
-    diyNote: 'The fill level has to be set with the fluid at a specific temperature, which needs a scan tool.',
+    diyNote: 'The fill level is usually set with the fluid at a specific temperature, which needs a scan tool.',
     setupNever: true,
+    confidence: 'conflict',
+    confNote: 'BMW calls it lifetime fill (from your notes, not verified by me). ZF and specialists say 50,000 to 60,000 miles, per a forum post.',
   },
   transfer: {
     id: 'transfer',
@@ -129,6 +151,8 @@ export const ITEMS = {
     diy: 'tools',
     diyNote: 'Needs a fluid pump, the right plug sockets, a torque wrench and a level car.',
     setupNever: true,
+    confidence: 'unchecked',
+    confNote: 'Your starting number. I did not find a source for it.',
   },
   diffs: {
     id: 'diffs',
@@ -142,6 +166,8 @@ export const ITEMS = {
     diy: 'tools',
     diyNote: 'Same tools as the transfer case. Two separate drain and fill jobs.',
     setupNever: true,
+    confidence: 'unchecked',
+    confNote: 'Your starting number. I did not find a source for it.',
   },
   coolant: {
     id: 'coolant',
@@ -154,6 +180,8 @@ export const ITEMS = {
     source: 'BMW says lifetime. Yearly check is your reminder.',
     diy: 'easy',
     diyNote: 'Look at the reservoir with the engine cold. Level should sit between the marks and the color should be clean.',
+    confidence: 'unchecked',
+    confNote: 'BMW calling coolant lifetime is from your notes and I did not verify it. The yearly look is your reminder.',
   },
   cooling: {
     id: 'cooling',
@@ -168,6 +196,8 @@ export const ITEMS = {
     extraNote: 'What to look at, engine cold: coolant level in the reservoir sits between the marks, no wet or crusty residue around hoses and the pump, no sweet smell, no puddle under the car, no coolant warning on the dash. If you see a warning or the temperature climbs, do not keep driving.',
     diy: 'easy',
     diyNote: 'It is a look, not a repair. Any fix after that is a shop job.',
+    confidence: 'weak',
+    confNote: 'Owner and parts-shop sites, none specific to 2022 cars.',
   },
   oilleaks: {
     id: 'oilleaks',
@@ -182,6 +212,8 @@ export const ITEMS = {
     extraNote: 'What to look at: wet or dirty oil on the top or side of the engine near the valve cover, around the oil filter housing, and any oil spots where you park. Check the dipstick level (or the iDrive oil level) too.',
     diy: 'easy',
     diyNote: 'It is a look, not a repair. A gasket or housing seal fix is a shop job.',
+    confidence: 'weak',
+    confNote: 'Owner and parts-shop sites, none specific to 2022 cars.',
   },
   rotation: {
     id: 'rotation',
@@ -193,7 +225,9 @@ export const ITEMS = {
     why: 'This is a judgment number, not a BMW rule. Change it anytime. Same size on all four corners means you can rotate freely.',
     source: 'Your judgment.',
     diy: 'tools',
-    diyNote: 'Needs a jack, jack stands and a torque wrench for the lug nuts. Many tire shops do it cheaply. Reset the tire pressure monitor in the car menu afterward.',
+    diyNote: 'Needs a jack, jack stands and a torque wrench for the lug nuts. Many tire shops do it cheaply. Check whether the tire pressure monitor needs resetting afterward.',
+    confidence: 'yours',
+    confNote: 'This is your judgment number, not a BMW rule.',
   },
   tires: {
     id: 'tires',
@@ -208,6 +242,8 @@ export const ITEMS = {
     extraNote: 'On xDrive, keep all four tires matched: same brand, model and size, and similar wear. Mismatched tires can strain the all-wheel-drive system.',
     diy: 'shop',
     diyNote: 'Mounting and balancing needs a tire machine. Buy and install at the same shop to keep it simple.',
+    confidence: 'yours',
+    confNote: 'The 4/32 and 6 year amber lines and 2/32 and 10 year red lines are rules of thumb, not BMW numbers.',
   },
   brakes: {
     id: 'brakes',
@@ -220,7 +256,9 @@ export const ITEMS = {
     why: 'No fixed interval. The car has wear sensors and warns you on the dash. This item only records when they were last replaced.',
     source: 'BMW wear sensors.',
     diy: 'shop',
-    diyNote: 'Rear pads need the electronic parking brake put in service mode. Safety part, so a shop is the safer pick.',
+    diyNote: 'Rear pads usually need the electronic parking brake put in service mode. Safety part, so a shop is the safer pick.',
+    confidence: 'widely',
+    confNote: 'The car estimates brake wear itself and warns you. That is how BMW\'s CBS works, per BMW technical material quoted by several sources.',
   },
   wipers: {
     id: 'wipers',
@@ -233,6 +271,8 @@ export const ITEMS = {
     source: 'Your starting interval.',
     diy: 'easy',
     diyNote: 'Parts only, takes a couple of minutes.',
+    confidence: 'yours',
+    confNote: 'Your yearly rule of thumb.',
   },
   battery: {
     id: 'battery',
@@ -247,6 +287,8 @@ export const ITEMS = {
     extraNote: 'After any battery replacement the new battery must be registered to the car, for example with the BimmerLink app. Skip that and the charging system can treat it like the old one.',
     diy: 'tools',
     diyNote: 'The swap is easy. Registering the new battery needs BimmerLink or a shop scan tool.',
+    confidence: 'unchecked',
+    confNote: 'Inspect from year 5 is your starting rule. I did not find a BMW source for it.',
   },
   walnut: {
     id: 'walnut',
@@ -260,6 +302,8 @@ export const ITEMS = {
     source: 'Common advice for direct-injection engines.',
     diy: 'shop',
     diyNote: 'Done by walnut-shell blasting with the intake off. Usually a specialist shop.',
+    confidence: 'weak',
+    confNote: 'Common advice for direct-injection engines. It is not on any BMW schedule.',
   },
   vehiclecheck: {
     id: 'vehiclecheck',
@@ -273,6 +317,8 @@ export const ITEMS = {
     source: 'My BMW app service requirements.',
     diy: 'shop',
     diyNote: 'BMW inspection. Done at a dealer or a BMW specialist.',
+    confidence: 'unchecked',
+    confNote: 'BMW sets this date in the car. I do not know its schedule, so copy it from the car.',
   },
 };
 
