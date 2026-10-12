@@ -18,6 +18,9 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const browserOk = () => { try { return sessionStorage.getItem('browserOk') === '1'; } catch { return false; } };
+const needsInstall = () => isIOS() && !isStandalone() && !S.settings.setupDone && !browserOk();
 const isStandalone = () =>
   (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
 
@@ -46,6 +49,11 @@ async function saveOver(id, patch) {
   await DB.put('items', rec);
 }
 
+async function addHistory(rec) {
+  rec.id = await DB.put('history', rec);
+  S.history.push(rec);
+}
+
 const ctx = () => {
   const m = C.mileageModel(S.mileage);
   return { cur: m.cur, rate: m.rate, now: C.today(), m };
@@ -62,6 +70,7 @@ function whenText(ev, m) {
   const it = ev.item;
   const est = m.isEst ? ' <span class="est">est.</span>' : '';
   if (ev.status === 'check') return 'Check it';
+  if (ev.quietNone) return 'Not started';
   if (it.kind === 'record') return ev.last ? `Replaced ${fmtDate(ev.last.date) || 'earlier'}` : 'Dash warns you';
   if (it.kind === 'tires') {
     const bits = [];
@@ -159,7 +168,7 @@ function homeView() {
     : '';
 
   let banners = '';
-  if (!isStandalone() && !installDismissed)
+  if (isIOS() && !isStandalone() && !installDismissed)
     banners += `<div class="banner warn"><b>Open this from your Home Screen icon.</b> Safari and the Home Screen app keep separate data. Steps are under More.
       <button class="link" data-act="dismiss-install">Dismiss</button></div>`;
   const nRec = openRecalls().length;
@@ -172,12 +181,14 @@ function homeView() {
 
   const row = (e) => {
     const it = e.item;
-    const sub = e.status === 'check' ? 'Last done? Tap to set it' : it.tag || '';
-    return `<a class="row s-${e.status}" href="#/item/${it.id}">
-      <span class="bar"></span>
+    const sub = e.status === 'check' ? (it.kind === 'tires' ? 'Add tread and DOT code, 30 seconds' : 'Tap to say when it was last done') : e.quietNone ? it.tag || '' : it.tag || '';
+    const inner = `<span class="bar"></span>
       <span class="main"><span class="name">${esc(it.name)}</span><span class="sub">${esc(sub)}</span></span>
       <span class="side"><span class="when">${whenText(e, m)}</span><span class="cost">${costLine(e) || '<i>No price yet</i>'}</span></span>
-      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`;
+      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
+    return e.status === 'check'
+      ? `<button class="row s-check" data-act="resolve" data-id="${it.id}">${inner}</button>`
+      : `<a class="row s-${e.status}" href="#/item/${it.id}">${inner}</a>`;
   };
   const groups = C.GROUPS.map(([k, label]) =>
     by[k].length
@@ -360,7 +371,7 @@ function moreView() {
     <section class="card"><h2>Air filter type</h2>
       <p class="muted small">Is your Dinan filter washable (reusable) or paper?</p>
       <div class="seg">${airSeg(S.settings.airFilterType || 'unknown')}</div></section>
-    ${isStandalone() ? '' : `<section class="card warn"><h2>Add to Home Screen</h2>
+    ${isStandalone() || !isIOS() ? '' : `<section class="card warn"><h2>Add to Home Screen</h2>
       <ol class="steps"><li>Open this page in <b>Safari</b>.</li><li>Tap the <b>Share</b> button (square with an arrow).</li><li>Scroll down, tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. Open the new icon from now on.</li></ol>
       <p class="muted small">Safari and the Home Screen app keep separate data, so do setup from the icon.</p></section>`}
     <section class="card"><h2>Your car</h2><dl class="kv">${CAR.details.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></section>
@@ -413,139 +424,86 @@ function watchView() {
       <p>Cross-check a suspected problem with a BMW specialist or a model-specific owner forum. Your JB4 tune may change what a shop says is covered.</p></section>`;
 }
 
-// ---------------------------------------------------------------- SETUP
+// ---------------------------------------------------------------- INSTALL + SETUP
+function installView() {
+  return `<div class="install">
+    <h1 class="title">Add 330i Care to your Home Screen first</h1>
+    <p>Do this before anything else. Safari and the Home Screen app keep separate data, so anything you enter in Safari will not carry over.</p>
+    <ol class="big-steps">
+      <li><span class="n">1</span><span>Tap the <b>Share</b> button <svg class="share" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4M6 11H5v10h14V11h-1"/></svg> in Safari's toolbar.</span></li>
+      <li><span class="n">2</span><span>Scroll down and tap <b>Add to Home Screen</b>.</span></li>
+      <li><span class="n">3</span><span>Tap <b>Add</b>, then open the new <b>330i Care</b> icon.</span></li>
+    </ol>
+    <p class="muted small">On iPhone with Chrome or another browser, open this page in Safari first.</p>
+    <button class="link" data-act="browser-ok">Use it in this browser anyway</button>
+    <p class="muted small">If you do, your data stays in this browser only.</p></div>`;
+}
+
 function newDraft() {
-  const items = {};
-  ORDER.forEach((id) => (items[id] = { mode: 'unknown', miles: '', date: '' }));
-  return {
-    step: 1,
-    miles: String(START_MILES),
-    bmw: { oilMiles: '', oilDate: '', fluidDate: '', padMiles: '', vcMiles: '', vcDate: '' },
-    air: 'unknown',
-    items,
-    tread: '',
-    dot: '',
-  };
+  return { step: 1, miles: String(START_MILES), air: 'unknown', origs: 'unknown', oilDate: '', oilMiles: '' };
 }
 const setPath = (o, path, v) => {
   const k = path.split('.');
   while (k.length > 1) o = o[k.shift()];
   o[k[0]] = v;
 };
+const seg3 = (act, cur, opts) =>
+  `<div class="seg">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" data-act="${act}" data-v="${v}">${l}</button>`).join('')}</div>`;
 
 function setupView() {
   if (!draft) draft = newDraft();
   const d = draft;
-  const bar = `<div class="steps-bar">Step ${d.step} of 3</div>`;
-  const maxDate = C.today();
   if (d.step === 1)
-    return `${bar}<h1 class="title">Welcome</h1>
-      <p>This takes about 3 minutes. Skip anything you don't know.</p>
-      ${isStandalone() ? '' : `<div class="banner warn"><b>Do setup from your Home Screen icon.</b> Safari and the Home Screen app keep separate data. Steps are under More after you continue, or tap Share, then Add to Home Screen.</div>`}
+    return `<div class="steps-bar">Step 1 of 2</div><h1 class="title">Welcome</h1>
+      <p>Set up takes about a minute. Everything after the odometer is optional.</p>
       <label class="field">What does the odometer say right now?
         <input type="text" inputmode="numeric" pattern="[0-9]*" data-draft="miles" value="${esc(d.miles)}" data-focus></label>
       <div class="btns"><button class="btn primary block" data-act="s-next">Next</button>
       <button class="btn ghost block" data-act="restore">I already have a backup file. Restore it.</button></div>`;
-  if (d.step === 2)
-    return `${bar}<h1 class="title">From your My BMW app</h1>
-      <p class="muted">Optional. Open the My BMW app and find the service requirements list. Copy what it says and I will work out when each was last done. Leave blank to skip.</p>
-      <div class="card"><h2>Engine oil</h2><div class="grid2">
-        <label class="field">Due in (miles)<input type="text" inputmode="numeric" data-draft="bmw.oilMiles" value="${esc(d.bmw.oilMiles)}"></label>
-        <label class="field">Or by date<input type="date" data-draft="bmw.oilDate" value="${esc(d.bmw.oilDate)}"></label></div></div>
-      <div class="card"><h2>Brake fluid</h2>
-        <label class="field">Due by date<input type="date" data-draft="bmw.fluidDate" value="${esc(d.bmw.fluidDate)}"></label></div>
-      <div class="card"><h2>Brakes (pads)</h2>
-        <label class="field">Miles of pad life left<input type="text" inputmode="numeric" data-draft="bmw.padMiles" value="${esc(d.bmw.padMiles)}"></label></div>
-      <div class="card"><h2>Vehicle check</h2><div class="grid2">
-        <label class="field">Due in (miles)<input type="text" inputmode="numeric" data-draft="bmw.vcMiles" value="${esc(d.bmw.vcMiles)}"></label>
-        <label class="field">Or by date<input type="date" data-draft="bmw.vcDate" value="${esc(d.bmw.vcDate)}"></label></div></div>
-      <div class="btns"><button class="btn primary" data-act="s-next">Next</button><button class="btn ghost" data-act="s-back">Back</button></div>`;
-  const rows = ORDER.filter((id) => id !== 'vehiclecheck')
-    .map((id) => {
-      const it = ITEMS[id];
-      const s = d.items[id];
-      const nm = id === 'airfilter' ? 'Engine air filter' : it.name;
-      const seg = `<div class="seg"><button class="${s.mode === 'unknown' ? 'on' : ''}" data-act="s-mode" data-id="${id}" data-mode="unknown">Don't know</button>
-        ${it.setupNever ? `<button class="${s.mode === 'never' ? 'on' : ''}" data-act="s-mode" data-id="${id}" data-mode="never">Never done</button>` : ''}
-        <button class="${s.mode === 'known' ? 'on' : ''}" data-act="s-mode" data-id="${id}" data-mode="known">I know</button></div>`;
-      const fields =
-        s.mode === 'known'
-          ? `${s.fromBmw ? '<p class="muted small">Worked out from your My BMW numbers. Fix it if you know better.</p>' : ''}<div class="grid2">
-            <label class="field">${it.miles || id === 'tires' || id === 'brakes' ? 'At mileage' : 'At mileage (if known)'}<input type="text" inputmode="numeric" data-draft="items.${id}.miles" value="${esc(s.miles)}"></label>
-            <label class="field">On date<input type="date" max="${maxDate}" data-draft="items.${id}.date" value="${esc(s.date)}"></label></div>`
-          : '';
-      const air =
-        id === 'airfilter'
-          ? `<p class="muted small">Is your Dinan filter washable (reusable)?</p><div class="seg">${['washable', 'replace', 'unknown'].map((v) => `<button class="${d.air === v ? 'on' : ''}" data-act="s-air" data-v="${v}">${{ washable: 'Washable', replace: 'Paper', unknown: 'Not sure' }[v]}</button>`).join('')}</div>`
-          : '';
-      const tires =
-        id === 'tires'
-          ? `<div class="grid2"><label class="field">Tread (32nds of an inch)<input type="text" inputmode="decimal" data-draft="tread" value="${esc(d.tread)}"></label>
-             <label class="field">DOT code (4 digits)<input type="text" inputmode="numeric" maxlength="4" data-draft="dot" value="${esc(d.dot)}"></label></div>`
-          : '';
-      return `<div class="srow"><div class="sname">${esc(nm)}<span class="hint">${esc(intervalText(it))}</span></div>${air}${tires}${seg}${fields}</div>`;
-    })
-    .join('');
-  return `${bar}<h1 class="title">When was each done?</h1>
-    <p class="muted">Anything you don't know shows up as "Check it" until you mark it done. "Never done" means the original part is still on the car.</p>
-    ${rows}
-    <div class="btns sticky"><button class="btn ghost" data-act="s-back">Back</button><button class="btn primary" data-act="s-finish">Finish setup</button></div>`;
+  return `<div class="steps-bar">Step 2 of 2</div><h1 class="title">Three quick questions</h1>
+    <p class="muted">Skip any you don't know. Anything left blank shows up on your list as "Check it" so you can answer it later.</p>
+    <section class="card"><h2>Your Dinan air filter</h2>
+      <p class="muted small">Is it washable (reusable) or paper?</p>${seg3('s-air', d.air, [['washable', 'Washable'], ['replace', 'Paper'], ['unknown', 'Not sure']])}</section>
+    <section class="card"><h2>Original parts</h2>
+      <p class="muted small">Have the spark plugs, ignition coils, or the transmission, transfer case or differential fluid ever been replaced?</p>
+      ${seg3('s-origs', d.origs, [['yes', 'No, all original'], ['some', 'Some were'], ['unknown', 'Not sure']])}
+      ${d.origs === 'some' ? '<p class="muted small">Okay. Those stay on your list as "Check it" and you can answer each one.</p>' : ''}</section>
+    <section class="card"><h2>Last oil change</h2>
+      <div class="grid2"><label class="field">Date<input type="date" max="${C.today()}" data-draft="oilDate" value="${esc(d.oilDate)}"></label>
+      <label class="field">Mileage<input type="text" inputmode="numeric" data-draft="oilMiles" value="${esc(d.oilMiles)}"></label></div></section>
+    <div class="btns sticky"><button class="btn ghost" data-act="s-back">Back</button><button class="btn primary" data-act="s-finish">Finish</button></div>`;
 }
 
-function applyBmwToDraft() {
-  const d = draft;
-  const cur = num(d.miles) || 0;
-  const oM = num(d.bmw.oilMiles);
-  const oD = d.bmw.oilDate;
-  if ((oM != null || oD) && d.items.oil.mode === 'unknown')
-    d.items.oil = {
-      mode: 'known',
-      fromBmw: true,
-      miles: oM != null ? String(Math.max(0, cur + oM - FACTORY.oilMiles)) : '',
-      date: oD ? C.addMonths(oD, -FACTORY.oilMonths) : '',
+// Work out when the last service was from a My BMW "due in" number.
+function bmwLast(id, milesLeft, dueDate) {
+  const cur = ctx().cur || 0;
+  if (id === 'oil')
+    return {
+      miles: milesLeft != null ? Math.max(0, Math.round(cur + milesLeft - FACTORY.oilMiles)) : null,
+      date: dueDate ? C.addMonths(dueDate, -FACTORY.oilMonths) : null,
     };
-  if (d.bmw.fluidDate && d.items.brakefluid.mode === 'unknown')
-    d.items.brakefluid = { mode: 'known', fromBmw: true, miles: '', date: C.addMonths(d.bmw.fluidDate, -FACTORY.brakeFluidMonths) };
+  return { miles: null, date: dueDate ? C.addMonths(dueDate, -FACTORY.brakeFluidMonths) : null };
 }
+const historyRec = (itemId, o) => ({ itemId, date: null, miles: null, cost: null, shop: '', notes: '', photo: null, source: 'setup', createdAt: Date.now(), ...o });
 
 async function finishSetup() {
   const d = draft;
   const miles = num(d.miles);
   const now = C.today();
-  const ops = [];
-  ops.push({ store: 'mileage', put: { date: now, miles, source: 'setup' } });
-  for (const id of ORDER) {
-    const s = d.items[id];
-    if (id === 'vehiclecheck') continue;
-    if (s.mode === 'never') ops.push({ store: 'history', put: { itemId: id, date: null, miles: 0, cost: null, shop: '', notes: '', photo: null, source: 'original', createdAt: Date.now() } });
-    else if (s.mode === 'known') {
-      const mm = num(s.miles);
-      const dt = s.date && s.date <= now ? s.date : null;
-      if (mm != null || dt)
-        ops.push({ store: 'history', put: { itemId: id, date: dt, miles: mm, cost: null, shop: '', notes: s.fromBmw ? 'Worked out from My BMW app numbers' : '', photo: null, source: s.fromBmw ? 'bmw' : 'setup', createdAt: Date.now() } });
-    }
-  }
-  const tread = num(d.tread);
-  const dot = C.parseDot(d.dot);
-  if (tread != null || dot) {
-    const extra = {};
-    if (tread != null) extra.tread = tread;
-    if (dot) extra.dot = { ...dot, code: d.dot.trim() };
-    ops.push({ store: 'items', put: { id: 'tires', extra } });
-  }
-  const bmw = {};
-  const pad = num(d.bmw.padMiles);
-  if (pad != null) bmw.brakePads = { milesLeft: pad, enteredOn: now };
-  const vcM = num(d.bmw.vcMiles);
-  if (vcM != null || d.bmw.vcDate) bmw.vehicleCheck = { milesLeft: vcM, dueDate: d.bmw.vcDate || null, enteredOn: now, enteredMiles: miles };
-  ops.push({ store: 'meta', put: { key: 'bmw', value: bmw } });
-  const settings = { ...S.settings, setupDone: true, setupAt: new Date().toISOString(), airFilterType: d.air };
-  ops.push({ store: 'meta', put: { key: 'settings', value: settings } });
+  const ops = [{ store: 'mileage', put: { date: now, miles, source: 'setup' } }];
+  if (d.origs === 'yes')
+    for (const id of ORDER)
+      if (ITEMS[id].setupNever) ops.push({ store: 'history', put: historyRec(id, { miles: 0, notes: 'Original, never replaced', source: 'original' }) });
+  const om = num(d.oilMiles);
+  const od = d.oilDate && d.oilDate <= now ? d.oilDate : null;
+  if (om != null || od) ops.push({ store: 'history', put: historyRec('oil', { date: od, miles: om }) });
+  ops.push({ store: 'meta', put: { key: 'bmw', value: {} } });
+  ops.push({ store: 'meta', put: { key: 'settings', value: { ...S.settings, setupDone: true, setupAt: new Date().toISOString(), airFilterType: d.air } } });
   await DB.batch(ops);
   await load();
   draft = null;
   go('#/');
-  toast('All set');
+  toast('All set. Tap any "Check it" row to answer it.');
   if (navigator.onLine) runRecallCheck(false);
 }
 
@@ -579,6 +537,27 @@ function doneSheet(id) {
     </details>
     <p class="err" id="f-err"></p>
     <div class="btns"><button class="btn primary" data-act="save-done" data-id="${id}">Save</button><button class="btn ghost" data-act="close-sheet">Cancel</button></div>`);
+}
+
+function resolveSheet(id) {
+  const it = C.effectiveItem(ITEMS[id], S.over[id], S.settings);
+  if (it.kind === 'tires') return tiresSheet();
+  const orig = !!ITEMS[id].setupNever;
+  const bmw = id === 'oil' || id === 'brakefluid';
+  openSheet(`<h2>${esc(it.name)}</h2><p class="muted small">${esc(it.short)}</p>
+    <p class="strong" style="margin-top:10px">When was it last done?</p>
+    <div class="grid2"><label class="field">Date<input id="r-date" type="date" max="${C.today()}"></label>
+    <label class="field">Mileage<input id="r-miles" type="text" inputmode="numeric" placeholder="if you know"></label></div>
+    <p class="err" id="f-err"></p>
+    <div class="btns"><button class="btn primary" data-act="save-resolve" data-id="${id}">Save</button>
+    ${orig ? `<button class="btn ghost" data-act="resolve-original" data-id="${id}">Original part, never replaced</button>` : ''}
+    ${bmw ? `<details><summary>Copy from the My BMW app instead</summary>
+      <p class="muted small">Enter what the app says is due and I will work back to when it was last done.</p>
+      <div class="grid2">${id === 'oil' ? `<label class="field">Due in (miles)<input id="r-bmw-miles" type="text" inputmode="numeric"></label>` : ''}
+      <label class="field">Due by date<input id="r-bmw-date" type="date"></label></div>
+      <button class="btn ghost" data-act="save-resolve-bmw" data-id="${id}">Use these numbers</button></details>` : ''}
+    <a class="btn ghost" href="#/item/${id}">Open details</a>
+    <button class="btn ghost" data-act="close-sheet">Not sure yet</button></div>`);
 }
 
 function intervalSheet(id) {
@@ -929,21 +908,51 @@ const A = {
     go('#/setup');
   },
   // setup
-  's-next': () => {
-    if (draft.step === 1) {
-      const v = num(draft.miles);
-      if (v == null || v < 0) return toast('Enter the odometer reading first');
-    }
-    if (draft.step === 2) applyBmwToDraft();
-    draft.step += 1;
-    render(true);
-  },
-  's-back': () => { draft.step = Math.max(1, draft.step - 1); render(true); },
-  's-mode': (t) => {
-    draft.items[t.dataset.id].mode = t.dataset.mode;
+  resolve: (t) => resolveSheet(t.dataset.id),
+  'save-resolve': async (t) => {
+    const id = t.dataset.id;
+    const it = C.effectiveItem(ITEMS[id], S.over[id], S.settings);
+    const date = $('#r-date').value || null;
+    const miles = num($('#r-miles').value);
+    const err = $('#f-err');
+    if (date && date > C.today()) return (err.textContent = 'That date is in the future.');
+    if (date == null && miles == null) return (err.textContent = 'Add a date or a mileage, or tap Not sure yet.');
+    if (it.miles && !it.months && miles == null) return (err.textContent = 'This one counts miles, so add the mileage.');
+    if (it.months && !it.miles && !date) return (err.textContent = 'This one counts time, so add the date.');
+    await addHistory(historyRec(id, { date, miles: miles != null ? Math.round(miles) : null }));
+    closeSheet();
+    toast('Saved');
     render();
   },
+  'resolve-original': async (t) => {
+    await addHistory(historyRec(t.dataset.id, { miles: 0, notes: 'Original, never replaced', source: 'original' }));
+    closeSheet();
+    toast('Saved as original');
+    render();
+  },
+  'save-resolve-bmw': async (t) => {
+    const id = t.dataset.id;
+    const mEl = $('#r-bmw-miles');
+    const last = bmwLast(id, mEl ? num(mEl.value) : null, $('#r-bmw-date').value || null);
+    if (last.miles == null && !last.date) return ($('#f-err').textContent = 'Enter what the My BMW app shows.');
+    await addHistory(historyRec(id, { date: last.date, miles: last.miles, notes: 'Worked out from My BMW app numbers', source: 'bmw' }));
+    closeSheet();
+    toast('Saved');
+    render();
+  },
+  'browser-ok': () => {
+    try { sessionStorage.setItem('browserOk', '1'); } catch { /* ignore */ }
+    render(true);
+  },
+  's-next': () => {
+    const v = num(draft.miles);
+    if (v == null || v < 0) return toast('Enter the odometer reading first');
+    draft.step = 2;
+    render(true);
+  },
+  's-back': () => { draft.step = 1; render(true); },
   's-air': (t) => { draft.air = t.dataset.v; render(); },
+  's-origs': (t) => { draft.origs = t.dataset.v; render(); },
   's-finish': () => finishSetup(),
 };
 
@@ -1001,7 +1010,8 @@ function render(scrollTop) {
   let tab = 'home';
   let chrome = true;
   const m = /^#\/item\/(\w+)/.exec(hash);
-  if (hash === '#/setup') { html = setupView(); chrome = false; }
+  if (needsInstall()) { html = installView(); chrome = false; }
+  else if (hash === '#/setup') { html = setupView(); chrome = false; }
   else if (m) { html = itemView(m[1]); chrome = false; }
   else if (hash === '#/history') { html = historyView(); tab = 'history'; }
   else if (hash === '#/more') { html = moreView(); tab = 'more'; }

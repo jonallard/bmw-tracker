@@ -157,6 +157,7 @@ export const ITEMS = {
   },
   cooling: {
     id: 'cooling',
+    quiet: true,
     name: 'Cooling system leak check',
     short: 'A quick look for coolant leaks and a dropping coolant level. The cooling system is the most-reported B48 problem area.',
     miles: null,
@@ -170,6 +171,7 @@ export const ITEMS = {
   },
   oilleaks: {
     id: 'oilleaks',
+    quiet: true,
     name: 'Oil leak check',
     short: 'A quick look for oil seepage around the valve cover and oil filter housing.',
     miles: null,
@@ -234,6 +236,7 @@ export const ITEMS = {
   },
   battery: {
     id: 'battery',
+    quiet: true,
     name: '12V battery',
     short: 'The regular car battery that starts the car and runs the electronics.',
     miles: null,

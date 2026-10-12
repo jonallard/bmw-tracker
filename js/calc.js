@@ -121,6 +121,7 @@ export function evaluate(it, entries, ctx, settings = {}, bmw = null) {
 
   let usable = last;
   if (!usable && it.optional) usable = { miles: 0, date: null, assumed: true };
+  if (!usable && it.quiet) return { ...base, status: 'ok', quietNone: true };
   if (!usable) return { ...base, status: 'check' };
 
   let milesLeft = null;

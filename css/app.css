@@ -153,9 +153,6 @@ input:focus { outline: 3px solid var(--accent); outline-offset: 0; }
 .seg button { flex: 1; min-height: 48px; border: 1.5px solid var(--line); background: var(--bg); color: var(--text); border-radius: 12px; font: inherit; font-size: 15px; font-weight: 700; padding: 0 6px; }
 .seg button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .steps-bar { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
-.srow { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
-.sname { font-weight: 800; display: flex; flex-direction: column; margin-bottom: 4px; }
-.sname .hint { font-size: 13px; font-weight: 500; color: var(--muted); }
 
 /* bottom sheet */
 #sheet-root { display: none; }
@@ -173,3 +170,10 @@ input:focus { outline: 3px solid var(--accent); outline-offset: 0; }
   background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 999px; font-weight: 700; z-index: 60; max-width: 90vw; width: max-content; text-align: center; transition: all .2s;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* install gate */
+.install { padding-top: 24px; }
+.big-steps { list-style: none; padding: 0; margin: 20px 0; display: grid; gap: 12px; }
+.big-steps li { display: flex; gap: 14px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; font-size: 18px; }
+.big-steps .n { flex: 0 0 36px; height: 36px; border-radius: 50%; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; font-weight: 800; }
+.share { width: 22px; height: 22px; vertical-align: -5px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
